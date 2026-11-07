@@ -108,5 +108,21 @@ class Extras(unittest.TestCase):
         self.assertEqual(entry, {'wheel': 'GBC/wheel/a-b.png', 'name': 'New', 'platform': 'GBC', 'crcs': ['AAAA0000']})
 
 
+class Roms(unittest.TestCase):
+    def test_nds_roms_are_read_from_their_own_folder(self):
+        card = Path(tempfile.mkdtemp())
+        (card / 'Games' / 'NDS').mkdir(parents=True)
+        for name in ('Mario Kart DS (USA).nds', 'notes.txt', '.hidden.nds'):
+            (card / 'Games' / 'NDS' / name).write_bytes(b'x')
+        self.assertEqual([p.name for p in harvest.roms(card, 'NDS')], ['Mario Kart DS (USA).nds'])
+
+
+class WantedFor(unittest.TestCase):
+    def test_nds_takes_the_label_and_box_but_no_logo_unless_told_otherwise(self):
+        self.assertEqual(harvest.wanted_for('NDS'), ['support-texture', 'box-3D'])
+        self.assertEqual(harvest.wanted_for('GBA'), ['wheel', 'look', 'support-texture', 'box-3D'])
+        self.assertEqual(harvest.wanted_for('NDS', 'wheel, look'), ['wheel', 'look'])
+
+
 if __name__ == '__main__':
     unittest.main()

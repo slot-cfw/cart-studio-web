@@ -61,15 +61,24 @@ PLATFORMS = {
     'GBA': 'Nintendo - Game Boy Advance',
     'GB': 'Nintendo - Game Boy',
     'GBC': 'Nintendo - Game Boy Color',
+    'NDS': 'Nintendo - Nintendo DS',
 }
-EXTENSIONS = {'GBA': ('.gba',), 'GB': ('.gb', '.gbc'), 'GBC': ('.gb', '.gbc')}
+EXTENSIONS = {'GBA': ('.gba',), 'GB': ('.gb', '.gbc'), 'GBC': ('.gb', '.gbc'), 'NDS': ('.nds',)}
 
 # ScreenScraper's own system ids. They are named "Game Boy Color", not libretro's "Nintendo -
 # Game Boy Color", so there is no shared name to look them up by. Stated here and then checked
 # against the live list at startup: a renumbering upstream would otherwise file one console's art
 # under another's name, silently and for the whole run.
-SS_SYSTEM = {'GB': 9, 'GBC': 10, 'GBA': 12}
-SS_EXPECT = {'GB': 'game boy', 'GBC': 'game boy color', 'GBA': 'game boy advance'}
+MEDIA = 'wheel,look,support-texture,box-3D'
+PLATFORM_MEDIA = {'NDS': 'support-texture,box-3D'}
+
+
+def wanted_for(platform, media=None):
+    return [m.strip() for m in (media or PLATFORM_MEDIA.get(platform, MEDIA)).split(',') if m.strip()]
+
+
+SS_SYSTEM = {'GB': 9, 'GBC': 10, 'GBA': 12, 'NDS': 15}
+SS_EXPECT = {'GB': 'game boy', 'GBC': 'game boy color', 'GBA': 'game boy advance', 'NDS': 'nintendo ds'}
 
 # Where each media lands, in the layout libretro uses and the studio already fetches.
 # A media's own name is its folder: <platform>/<media type>/<crc>.png. The platform folders are
@@ -204,7 +213,10 @@ def other_dumps(platform):
 
 def check_systems(c):
     """Hold ScreenScraper to the ids above, by the name it gives each one."""
-    data = call('systemesListe.php', c)
+    try:
+        data = call('systemesListe.php', c)
+    except json.JSONDecodeError:
+        data = None
     listed = (data or {}).get('response', {}).get('systemes', [])
     if not listed:
         sys.exit('ScreenScraper would not list its systems: check the credentials')
@@ -407,8 +419,9 @@ def main():
     ap.add_argument('--extras', nargs='?', const=str(EXTRAS),
                     help=f'the games no dat names, kept under slugs of our own (default {EXTRAS.name})')
     ap.add_argument('--out', help='where the set is written')
-    ap.add_argument('--media', default='wheel,look,support-texture',
-                    help='comma separated ScreenScraper media types, or look for the label measured from the cart scan')
+    ap.add_argument('--media',
+                    help=f'comma separated ScreenScraper media types, or look for the label measured from the cart scan '
+                         f'(default {MEDIA}, and {PLATFORM_MEDIA["NDS"]} alone for NDS)')
     ap.add_argument('--relook', action='store_true', help='measure every look again')
     ap.add_argument('--reregion', action='store_true', help='fetch every media again for dumps whose own region is not USA')
     ap.add_argument('--probe', help='print every media one rom has, and stop')
@@ -434,8 +447,11 @@ def main():
     # Their limit is per minute, so pace to it rather than racing into a 429.
     pause = 60.0 / q['per_min'] if q['per_min'] else 1.0
 
-    wanted = [m.strip() for m in args.media.split(',') if m.strip()]
-    if 'look' in wanted:
+    if args.dat and args.dat != 'all':
+        chosen = [args.dat]
+    else:
+        chosen = list(PLATFORMS) if args.dat or args.card else []
+    if any('look' in wanted_for(p, args.media) for p in {*chosen, *extras}):
         try:
             global look
             import look
@@ -463,7 +479,7 @@ def main():
         name = entries.get(crc, crc)
         regions = regions_for(entries.get(crc) or romname)
         redo = args.reregion and regions[0] != 'us'
-        todo = todo_for(crc, wanted, index, root, args.relook, redo)
+        todo = todo_for(crc, wanted_for(platform, args.media), index, root, args.relook, redo)
         if not todo:
             with lock:
                 n['skipped'] += 1
@@ -502,7 +518,7 @@ def main():
     def extra(platform, system, known, e):
         slug = e['slug']
         root = Path(args.out) / platform
-        todo = todo_for(slug, wanted, index, root, args.relook)
+        todo = todo_for(slug, wanted_for(platform, args.media), index, root, args.relook)
         if not todo and 'crcs' in index.get(slug, {}):
             n['skipped'] += 1
             return
@@ -557,10 +573,6 @@ def main():
                 except Exception as err:
                     n['missed'] += 1
                     print(f'  {e["slug"]}: {type(err).__name__}')
-        if args.dat and args.dat != 'all':
-            chosen = [args.dat]
-        else:
-            chosen = list(PLATFORMS) if args.dat or args.card else []
         for platform in chosen:
             if stop.is_set():
                 break
