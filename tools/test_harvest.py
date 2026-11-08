@@ -119,7 +119,7 @@ class Roms(unittest.TestCase):
 
 class WantedFor(unittest.TestCase):
     def test_nds_takes_the_label_and_box_but_no_logo_unless_told_otherwise(self):
-        self.assertEqual(harvest.wanted_for('NDS'), ['support-texture', 'box-3D'])
+        self.assertEqual(harvest.wanted_for('NDS'), ['wheel', 'support-texture', 'box-3D'])
         self.assertEqual(harvest.wanted_for('GBA'), ['wheel', 'look', 'support-texture', 'box-3D'])
         self.assertEqual(harvest.wanted_for('NDS', 'wheel, look'), ['wheel', 'look'])
 

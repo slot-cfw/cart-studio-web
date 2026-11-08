@@ -70,7 +70,7 @@ EXTENSIONS = {'GBA': ('.gba',), 'GB': ('.gb', '.gbc'), 'GBC': ('.gb', '.gbc'), '
 # against the live list at startup: a renumbering upstream would otherwise file one console's art
 # under another's name, silently and for the whole run.
 MEDIA = 'wheel,look,support-texture,box-3D'
-PLATFORM_MEDIA = {'NDS': 'support-texture,box-3D'}
+PLATFORM_MEDIA = {'NDS': 'wheel,support-texture,box-3D'}
 
 
 def wanted_for(platform, media=None):
