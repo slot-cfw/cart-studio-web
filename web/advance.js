@@ -15,6 +15,8 @@ export function flatFromSettings(text) {
 
 export const slotPath = (systemName, ...parts) => [systemName, 'SLOT', ...parts].join('/');
 
+export const foldKey = (platform, stem) => `${platform}/${stem.normalize('NFC').toUpperCase().toLowerCase()}`;
+
 const OTHER_LABELS = LABEL_EXTENSIONS.filter((e) => e !== 'png');
 
 export function staleLabel(path, replaced) {
@@ -23,7 +25,7 @@ export function staleLabel(path, replaced) {
   const name = parts[2];
   const dot = name.lastIndexOf('.');
   if (dot < 0 || !OTHER_LABELS.includes(name.slice(dot + 1).toLowerCase())) return false;
-  return replaced.has(`${parts[1].toUpperCase()}/${name.slice(0, dot).normalize('NFC')}`);
+  return replaced.has(foldKey(parts[1].toUpperCase(), name.slice(0, dot)));
 }
 
 export const conversionBlocked = (s) =>

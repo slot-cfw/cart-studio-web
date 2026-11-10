@@ -355,3 +355,32 @@ test('a new PNG label replaces a non-PNG one on a slot. advance card', async () 
   assert.equal(tree.Labels.GBA['z.png'], 'png');
   assert.equal(tree.Labels.GBA['z.jpg'], undefined);
 });
+
+const CASED = {
+  'ezkernelnew.bin': '',
+  Games: { GBA: { 'Ruby.gba': '', 'STRASSE.gba': '' } },
+  Labels: { GBA: { 'ruby.png': 'png', 'Straße.png': 'png' } },
+};
+
+test('a slot. advance card pairs labels with roms whatever their case', async () => {
+  for (const source of await sources(CASED)) {
+    assert.equal(await (await source.labels.get(source.keyOf('GBA', 'Ruby'))()).text(), 'png');
+    assert.equal(await (await source.labels.get(source.keyOf('GBA', 'STRASSE'))()).text(), 'png');
+    assert.deepEqual(source.orphans, []);
+  }
+});
+
+test('a slot card still pairs labels by exact name', async () => {
+  const { 'ezkernelnew.bin': _, ...slot } = CASED;
+  for (const source of await sources(slot)) {
+    assert.equal(source.labels.get(source.keyOf('GBA', 'Ruby')), undefined);
+    assert.equal(source.keyOf('GBA', 'Ruby'), 'GBA/Ruby');
+  }
+});
+
+test('a new PNG label removes a non-PNG one whose case differs', async () => {
+  const tree = structuredClone({ ...CASED, Labels: { GBA: { 'ruby.jpg': 'jpeg' } } });
+  const source = await fromDirectory(writable(tree));
+  assert.equal(await source.write('GBA', 'Ruby', new TextEncoder().encode('png'), true), 'written');
+  assert.equal(tree.Labels.GBA['ruby.jpg'], undefined);
+});

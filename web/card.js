@@ -15,7 +15,7 @@ export const hardware = (platform) => HARDWARE[platform] ?? platform;
 const EXTENSIONS = { GBA: ['gba'], GBAV: ['gba'], GB: ['gb', 'gbc'], GBC: ['gb', 'gbc'] };
 const ANY_ROM = ['gba', 'gb', 'gbc'];
 
-import { advanceExtensions, isAdvanceRoot, LABEL_EXTENSIONS } from './advance.js';
+import { advanceExtensions, foldKey, isAdvanceRoot, LABEL_EXTENSIONS } from './advance.js';
 
 const named = (dir) => PLATFORMS.find((p) => p === dir.toUpperCase());
 const ext = (name) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
@@ -30,7 +30,7 @@ const stemOf = (name) => name.slice(0, name.lastIndexOf('.'));
 const suffixOf = (name) => name.slice(name.lastIndexOf('.'));
 const GENERATED = ['carts', 'carts_flat', 'labels'];
 
-function labelPicker() {
+function labelPicker(keyOf) {
   const ranks = new Map();
   const labels = new Map();
   const found = [];
@@ -38,7 +38,7 @@ function labelPicker() {
     labels,
     found,
     add(platform, name, file) {
-      const key = labelKey(platform, stemOf(name));
+      const key = keyOf(platform, stemOf(name));
       const rank = LABEL_EXTENSIONS.indexOf(ext(name));
       if (ranks.has(key) && ranks.get(key) <= rank) return;
       if (!ranks.has(key)) found.push({ key, platform, stem: stemOf(name) });
@@ -49,7 +49,7 @@ function labelPicker() {
 }
 
 function advanceFields(carts, picker) {
-  const owned = new Set(carts.map((c) => labelKey(c.platform, c.stem)));
+  const owned = new Set(carts.map((c) => foldKey(c.platform, c.stem)));
   const orphans = picker.found
     .filter((l) => advanceExtensions[l.platform] && !owned.has(l.key))
     .map((l) => ({ platform: l.platform, stem: l.stem, file: picker.labels.get(l.key) }));
@@ -96,6 +96,7 @@ export async function fromDirectory(root) {
   const rootNames = [];
   for await (const [name] of root.entries()) rootNames.push(name);
   const advance = isAdvanceRoot(rootNames);
+  const keyOf = advance ? foldKey : labelKey;
   const systemName = rootNames.find((n) => n.toLowerCase() === 'system') ?? 'SYSTEM';
   let games;
   try {
@@ -123,7 +124,7 @@ export async function fromDirectory(root) {
   }
   if (!sawPlatform && loose) throw new Error(OLD_LAYOUT);
 
-  const picker = labelPicker();
+  const picker = labelPicker(keyOf);
   const labels = picker.labels;
   try {
     const dir = await root.getDirectoryHandle('Labels');
@@ -208,6 +209,7 @@ export async function fromDirectory(root) {
     ...extra,
     carts: carts.sort(byCart),
     labels,
+    keyOf,
     direct: true,
     systemShells,
     labelShells,
@@ -254,7 +256,7 @@ export async function fromDirectory(root) {
       if (advance) {
         const stale = [];
         for await (const [other, handle] of dir.entries()) {
-          const same = stemOf(other).normalize('NFC') === stem.normalize('NFC');
+          const same = foldKey(platform, stemOf(other)) === foldKey(platform, stem);
           if (handle.kind === 'file' && same && ext(other) !== 'png' && LABEL_EXTENSIONS.includes(ext(other))) {
             stale.push(other);
           }
@@ -270,9 +272,10 @@ export function fromFiles(files) {
   if (files.length === 0) throw new Error(UNREADABLE);
   const paths = files.map((file) => file.webkitRelativePath.split('/'));
   const advance = isAdvanceRoot(paths.filter((parts) => parts.length === 2).map((parts) => parts[1]));
+  const keyOf = advance ? foldKey : labelKey;
   const systemName = paths.find((parts) => parts.length >= 3 && parts[1].toLowerCase() === 'system')?.[1] ?? 'SYSTEM';
   const carts = [];
-  const picker = labelPicker();
+  const picker = labelPicker(keyOf);
   const labels = picker.labels;
   const labelFiles = [];
   const slotFiles = [];
@@ -337,6 +340,7 @@ export function fromFiles(files) {
     ...extra,
     carts: carts.sort(byCart),
     labels,
+    keyOf,
     labelFiles,
     direct: false,
     write: null,

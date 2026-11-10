@@ -29,8 +29,8 @@ test('generated files go under the card own System folder', () => {
 });
 
 test('a zipped PNG drops the carried non-PNG label of the same cart', async () => {
-  const { staleLabel } = await import('./advance.js');
-  const replaced = new Set(['GBA/Photo']);
+  const { foldKey, staleLabel } = await import('./advance.js');
+  const replaced = new Set([foldKey('GBA', 'Photo')]);
   assert.equal(staleLabel('Labels/GBA/Photo.jpg', replaced), true);
   assert.equal(staleLabel('Labels/gba/Photo.WEBP', replaced), true);
   assert.equal(staleLabel('Labels/GBA/Photo.png', replaced), false);
@@ -43,4 +43,10 @@ test('conversion waits for shells it could read', async () => {
   assert.equal(conversionBlocked({}), null);
   assert.match(conversionBlocked({ shellReadFailed: true }), /shells couldn’t be read/);
   assert.match(conversionBlocked({ systemReadFailed: true }), /shells couldn’t be read/);
+});
+
+test('stale labels are found whatever their case', async () => {
+  const { foldKey, staleLabel } = await import('./advance.js');
+  assert.equal(foldKey('GBA', 'Straße'), foldKey('GBA', 'STRASSE'));
+  assert.equal(staleLabel('Labels/GBA/ruby.jpg', new Set([foldKey('GBA', 'Ruby')])), true);
 });

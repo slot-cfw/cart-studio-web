@@ -30,7 +30,7 @@ import init, {
   stub_target,
   thumbnail_name,
 } from './pkg/slot_cart_studio.js';
-import { fromDirectory, fromFiles, hardware, labelKey, PLATFORMS, twins } from './card.js';
+import { fromDirectory, fromFiles, hardware, PLATFORMS, twins } from './card.js';
 import { fetchArt, fetchDat, fetchIndex, fetchThumb, limiter } from './libretro.js';
 import { createEditor } from './editor.js';
 import { amend, commit } from './history.js';
@@ -692,7 +692,7 @@ async function identify(s) {
       // so a code read from there is opcode bytes dressed up as one.
       c.code = hardware(c.platform) === 'GBA' ? header_code(head) : '';
       if (hardware(c.platform) !== 'GBA' || s.source.advance) c.head = head;
-      const label = s.source.labels.get(labelKey(c.platform, c.stem));
+      const label = s.source.labels.get(s.source.keyOf(c.platform, c.stem));
       if (label) {
         const bytes = new Uint8Array(await (await label()).arrayBuffer());
         c.existingPng = bytes;
@@ -1222,7 +1222,7 @@ async function writeLabels() {
         parts.push(zip.take());
         if (png) {
           zipped.set(c, png);
-          replaced.add(labelKey(c.platform, c.stem));
+          replaced.add(s.source.keyOf(c.platform, c.stem));
         }
         written.add(pathKey(path));
         // Packing a few hundred carts is seconds of synchronous work with nothing on screen, so
