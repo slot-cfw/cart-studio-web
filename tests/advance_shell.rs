@@ -192,3 +192,15 @@ fn shell_face_matches_pillow() {
         }
     }
 }
+
+#[test]
+fn caches_stay_bounded() {
+    use slot_cart_studio::advance::plastic::cache_sizes;
+    for n in 0..300u32 {
+        let colour = [(n >> 8) as u8, n as u8, 7];
+        tinted("gba_neutral.png", colour, false, false);
+        shell_face(Shape::Gba, colour, Finish::Solid, SPECS[0].1);
+    }
+    let (tints, faces) = cache_sizes();
+    assert!(tints <= 128 && faces <= 128, "{tints} {faces}");
+}

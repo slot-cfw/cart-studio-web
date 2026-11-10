@@ -26,6 +26,23 @@ fn sparkle(x: u32, y: u32) -> u32 {
 type TintKey = (String, [u8; 3], bool, bool);
 type FaceKey = (Shape, [u8; 3], Finish, [u32; 4]);
 
+const CACHED: usize = 128;
+
+pub fn cache_sizes() -> (usize, usize) {
+    (
+        TINTED.with(|c| c.borrow().len()),
+        FACES.with(|c| c.borrow().len()),
+    )
+}
+
+fn keep<K: Eq + std::hash::Hash>(cache: &RefCell<HashMap<K, Image>>, key: K, im: &Image) {
+    let mut cache = cache.borrow_mut();
+    if cache.len() >= CACHED {
+        cache.clear();
+    }
+    cache.insert(key, im.clone());
+}
+
 thread_local! {
     static TINTED: RefCell<HashMap<TintKey, Image>> = RefCell::new(HashMap::new());
     static FACES: RefCell<HashMap<FaceKey, Image>> = RefCell::new(HashMap::new());
@@ -53,7 +70,7 @@ pub fn tinted(name: &str, colour: [u8; 3], clear: bool, glitter: bool) -> Image 
             p[3] = 255;
         }
     }
-    TINTED.with(|c| c.borrow_mut().insert(key, im.clone()));
+    TINTED.with(|c| keep(c, key, &im));
     im
 }
 
@@ -170,6 +187,6 @@ pub fn shell_face(shape: Shape, colour: [u8; 3], finish: Finish, panel: [u32; 4]
         h,
         px: out.iter().flat_map(|p| p.map(|v| v as u8)).collect(),
     };
-    FACES.with(|c| c.borrow_mut().insert(key, im.clone()));
+    FACES.with(|c| keep(c, key, &im));
     im
 }

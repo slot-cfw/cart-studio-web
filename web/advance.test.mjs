@@ -27,3 +27,20 @@ test('generated files go under the card own System folder', () => {
   assert.equal(slotPath('System', 'CARTS', 'GBA', 'x.bmp'), 'System/SLOT/CARTS/GBA/x.bmp');
   assert.equal(slotPath('SYSTEM', 'conversion.json'), 'SYSTEM/SLOT/conversion.json');
 });
+
+test('a zipped PNG drops the carried non-PNG label of the same cart', async () => {
+  const { staleLabel } = await import('./advance.js');
+  const replaced = new Set(['GBA/Photo']);
+  assert.equal(staleLabel('Labels/GBA/Photo.jpg', replaced), true);
+  assert.equal(staleLabel('Labels/gba/Photo.WEBP', replaced), true);
+  assert.equal(staleLabel('Labels/GBA/Photo.png', replaced), false);
+  assert.equal(staleLabel('Labels/GBA/Other.jpg', replaced), false);
+  assert.equal(staleLabel('Labels/cart_shell.txt', replaced), false);
+});
+
+test('conversion waits for shells it could read', async () => {
+  const { conversionBlocked } = await import('./advance.js');
+  assert.equal(conversionBlocked({}), null);
+  assert.match(conversionBlocked({ shellReadFailed: true }), /shells couldn’t be read/);
+  assert.match(conversionBlocked({ systemReadFailed: true }), /shells couldn’t be read/);
+});

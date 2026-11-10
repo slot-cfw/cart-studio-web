@@ -14,3 +14,17 @@ export function flatFromSettings(text) {
 }
 
 export const slotPath = (systemName, ...parts) => [systemName, 'SLOT', ...parts].join('/');
+
+const OTHER_LABELS = LABEL_EXTENSIONS.filter((e) => e !== 'png');
+
+export function staleLabel(path, replaced) {
+  const parts = path.split('/');
+  if (parts.length !== 3 || parts[0].toLowerCase() !== 'labels') return false;
+  const name = parts[2];
+  const dot = name.lastIndexOf('.');
+  if (dot < 0 || !OTHER_LABELS.includes(name.slice(dot + 1).toLowerCase())) return false;
+  return replaced.has(`${parts[1].toUpperCase()}/${name.slice(0, dot).normalize('NFC')}`);
+}
+
+export const conversionBlocked = (s) =>
+  s.shellReadFailed || s.systemReadFailed ? 'slot. advance carts not written: the card’s shells couldn’t be read.' : null;

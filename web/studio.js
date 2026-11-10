@@ -40,7 +40,7 @@ import { applyFill, autoFill, available, fillCounts, fillText, wears } from './l
 import { extrasFrom } from './extras.js';
 import { heroPicks, heroShell } from './hero.js';
 import { dismissNotice, noticeShown } from './notice.js';
-import { flatFromSettings, slotPath } from './advance.js';
+import { conversionBlocked, flatFromSettings, slotPath, staleLabel } from './advance.js';
 
 const $ = (id) => document.getElementById(id);
 const limit = limiter(4);
@@ -652,6 +652,7 @@ async function identify(s) {
     text.system = await s.source.systemShells();
   } catch (e) {
     logError('Config/cart_shell.txt', e);
+    s.systemReadFailed = true;
     failed.push(e);
   }
   try {
@@ -1074,6 +1075,8 @@ async function itemsFor(s, zipped) {
 }
 
 async function convertCard(s, labelShells, zipped, put) {
+  const blocked = conversionBlocked(s);
+  if (blocked) return { count: 0, notes: [blocked] };
   const items = await itemsFor(s, zipped);
   const advance = new Advance(s.source.name ?? '', s.systemText ?? '', labelShells);
   let open = true;
@@ -1209,6 +1212,7 @@ async function writeLabels() {
       const zipped = new Map();
       let labelShellText = s.shellText ?? '';
       const carried = s.source.labelFiles;
+      const replaced = new Set();
       const total = carts.length + shells.length + carried.length;
       for (const [i, c] of carts.entries()) {
         writeProgress(i + 1, total);
@@ -1216,7 +1220,10 @@ async function writeLabels() {
         const png = withCartLabel(c, (label) => label.png());
         zip.add(path, png);
         parts.push(zip.take());
-        if (png) zipped.set(c, png);
+        if (png) {
+          zipped.set(c, png);
+          replaced.add(labelKey(c.platform, c.stem));
+        }
         written.add(pathKey(path));
         // Packing a few hundred carts is seconds of synchronous work with nothing on screen, so
         // give the tab a turn to paint the bar and take input.
@@ -1246,6 +1253,7 @@ async function writeLabels() {
       for (const [i, f] of carried.entries()) {
         writeProgress(carts.length + shells.length + i + 1, total);
         if (written.has(pathKey(f.path))) continue;
+        if (s.source.advance && staleLabel(f.path, replaced)) continue;
         try {
           zip.add(f.path, new Uint8Array(await (await f.file()).arrayBuffer()));
           parts.push(zip.take());
