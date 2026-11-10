@@ -178,6 +178,7 @@ export async function fromDirectory(root) {
     ? {
         ...advanceFields(carts, picker),
         systemName,
+        name: root.name ?? '',
         async settings() {
           const dir = await slotDir(false);
           if (!dir) return null;
@@ -324,7 +325,13 @@ export function fromFiles(files) {
     return file ? file.text() : '';
   };
   const extra = advance
-    ? { ...advanceFields(carts, picker), systemName, slotFiles, settings: async () => settingsFile?.text() ?? null }
+    ? {
+        ...advanceFields(carts, picker),
+        systemName,
+        name: paths[0][0],
+        slotFiles,
+        settings: async () => settingsFile?.text() ?? null,
+      }
     : {};
   return {
     ...extra,

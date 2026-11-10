@@ -883,12 +883,16 @@ function showPlatform(p) {
 
 function updateWriteBar() {
   if (!session) return;
-  const n = readyCarts().length + shellChanges().length;
+  const n = readyCarts().length + shellChanges().length + (onAdvance() ? 1 : 0);
   $('write-bar').hidden = n === 0 && !writing && $('eject').hidden;
   // Nothing to write means no button at all.
   $('write').hidden = n === 0 && !writing;
   $('write').disabled = n === 0 || writing || fatal;
-  $('write').textContent = session.source.direct ? 'Write to card' : 'Download labels';
+  $('write').textContent = session.source.direct
+    ? 'Write to card'
+    : onAdvance()
+      ? 'Download for slot. advance'
+      : 'Download labels';
 }
 
 function writeProgress(done, total) {
@@ -981,6 +985,20 @@ const STEPS = {
   ],
 };
 
+const ADVANCE_STEPS = {
+  mac: [
+    'Drag SLOT into the card’s System folder',
+    'It is inside the System folder from the ZIP. Choose Replace. The ZIP includes your slot. advance settings, so nothing is lost.',
+  ],
+  windows: [
+    'Drag SLOT into the card’s System folder',
+    'It is inside the System folder from the ZIP. Choose Replace the files in the destination.',
+  ],
+  linux: ['Copy SLOT into the card’s System folder', 'Merge it with the folder already there and replace the files.'],
+};
+
+const stepsFor = (os) => (onAdvance() ? [...STEPS[os].slice(0, 2), ADVANCE_STEPS[os], ...STEPS[os].slice(2)] : STEPS[os]);
+
 const osOf = (agent) => (/windows/i.test(agent) ? 'windows' : /mac os|macintosh|iphone|ipad/i.test(agent) ? 'mac' : 'linux');
 
 let lastZip = null;
@@ -988,7 +1006,7 @@ let lastZip = null;
 function guideFor(os) {
   for (const b of $('guide-os').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.os === os));
   $('guide-steps').replaceChildren(
-    ...STEPS[os].map(([title, detail]) => {
+    ...stepsFor(os).map(([title, detail]) => {
       const text = document.createElement('div');
       text.append(
         Object.assign(document.createElement('b'), { textContent: title }),
@@ -1035,11 +1053,81 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
 }
 
+async function itemsFor(s, zipped) {
+  const items = s.carts.map((c) => ({
+    platform: c.platform,
+    stem: c.stem,
+    head: c.head,
+    suffix: c.suffix,
+    label: async () => zipped.get(c) ?? c.existingPng ?? new Uint8Array(0),
+  }));
+  for (const o of s.source.orphans) {
+    items.push({
+      platform: o.platform,
+      stem: o.stem,
+      head: new Uint8Array(0),
+      suffix: '',
+      label: async () => new Uint8Array(await (await o.file()).arrayBuffer()),
+    });
+  }
+  return items;
+}
+
+async function convertCard(s, labelShells, zipped, put) {
+  const items = await itemsFor(s, zipped);
+  const advance = new Advance(s.source.name ?? '', s.systemText ?? '', labelShells);
+  let open = true;
+  const left = [];
+  let count = 0;
+  try {
+    for (const [i, item] of items.entries()) {
+      writeProgress(i + 1, items.length);
+      let bmps;
+      try {
+        const label = await item.label();
+        const out = advance.add(item.platform, item.stem, label, item.head, item.suffix);
+        try {
+          bmps = [['CARTS', out.cart()], ['CARTS_FLAT', out.flat()], ['LABELS', out.label()]];
+        } finally {
+          out.free();
+        }
+      } catch (e) {
+        if (trapped(e)) return null;
+        left.push(`${item.stem} (${e.message})`);
+        continue;
+      }
+      try {
+        for (const [dir, bytes] of bmps) await put([dir, item.platform, `${item.stem}.bmp`], bytes);
+        count++;
+      } catch (e) {
+        if (trapped(e)) return null;
+        logError(item.stem, e);
+        left.push(`${item.stem} (${e.message})`);
+      }
+      await new Promise((r) => setTimeout(r, 0));
+      if (fatal || s !== session) return null;
+    }
+    const manifest = advance.manifest();
+    open = false;
+    await put(['conversion.json'], new TextEncoder().encode(manifest));
+    const notes = [];
+    if (left.length) notes.push(`Left out of the slot. advance carts: ${left.join(', ')}.`);
+    notes.push(...JSON.parse(manifest).warnings);
+    return { count, notes };
+  } catch (e) {
+    if (trapped(e)) return null;
+    logError('conversion.json', e);
+    return { count, notes: ['Writing the slot. advance carts failed.'] };
+  } finally {
+    if (open) advance.free();
+  }
+}
+
 async function writeLabels() {
   const s = session;
   const carts = readyCarts();
   const shells = shellChanges();
-  if ((!carts.length && !shells.length) || writing || fatal) return;
+  if ((!carts.length && !shells.length && !s.source.advance) || writing || fatal) return;
   writing = true;
   $('eject').hidden = true;
   updateWriteBar();
@@ -1094,14 +1182,20 @@ async function writeLabels() {
           }
         }
       }
+      let converted = null;
+      if (s.source.advance) {
+        converted = await convertCard(s, s.shellText ?? '', new Map(), (parts, bytes) => s.source.writeSlot(parts, bytes));
+        if (!converted) return;
+      }
       // One that didn't, all of it, says so. Not over a card opened while this one was writing.
       if (s === session) {
-        $('eject').hidden = !(count.written || count.shells);
+        $('eject').hidden = !(count.written || count.shells || converted?.count);
         const plural = (k, one, many) => `${k} ${k === 1 ? one : many}`;
         const problems = [
           count.failed && `${plural(count.failed, 'label', 'labels')} couldn’t be written.`,
           count.skipped && `${plural(count.skipped, 'label was', 'labels were')} skipped: one turned up on the card meanwhile.`,
           shellNote,
+          ...(converted?.notes ?? []),
         ].filter(Boolean);
         if (problems.length) banner(problems.join(' '));
       }
@@ -1112,13 +1206,17 @@ async function writeLabels() {
       // up here, where memory is given back, and not in the module.
       const parts = [];
       const written = new Set();
+      const zipped = new Map();
+      let labelShellText = s.shellText ?? '';
       const carried = s.source.labelFiles;
       const total = carts.length + shells.length + carried.length;
       for (const [i, c] of carts.entries()) {
         writeProgress(i + 1, total);
         const path = `Labels/${c.platform}/${c.stem}.png`;
-        zip.add(path, withCartLabel(c, (label) => label.png()));
+        const png = withCartLabel(c, (label) => label.png());
+        zip.add(path, png);
         parts.push(zip.take());
+        if (png) zipped.set(c, png);
         written.add(pathKey(path));
         // Packing a few hundred carts is seconds of synchronous work with nothing on screen, so
         // give the tab a turn to paint the bar and take input.
@@ -1135,6 +1233,7 @@ async function writeLabels() {
             const text = mergedShells(s, shells, shells.map((c) => c.shell));
             zip.add(SHELL_FILE, new TextEncoder().encode(text));
             parts.push(zip.take());
+            labelShellText = text;
             written.add(pathKey(SHELL_FILE));
           } catch (e) {
             if (trapped(e)) return;
@@ -1157,6 +1256,23 @@ async function writeLabels() {
         }
         if (fatal || s !== session) return;
       }
+      let converted = null;
+      if (s.source.advance) {
+        converted = await convertCard(s, labelShellText, zipped, async (slot, bytes) => {
+          zip.add(slotPath(s.source.systemName, ...slot), bytes);
+          parts.push(zip.take());
+        });
+        if (!converted) return;
+        for (const f of s.source.slotFiles) {
+          try {
+            zip.add(f.path, new Uint8Array(await (await f.file()).arrayBuffer()));
+            parts.push(zip.take());
+          } catch (e) {
+            if (trapped(e)) return;
+            logError(f.path, e);
+          }
+        }
+      }
       parts.push(zip.finish());
       lastZip = new Blob(parts, { type: 'application/zip' });
       $('guide-again').disabled = false;
@@ -1164,7 +1280,7 @@ async function writeLabels() {
       const unreadNote =
         unread > 0 &&
         `${unread === 1 ? '1 file' : `${unread} files`} in the card’s Labels folder couldn’t be read and aren’t in the zip. Merge it into the card’s Labels folder rather than replacing it.`;
-      const notes = [shellNote, unreadNote].filter(Boolean);
+      const notes = [shellNote, unreadNote, ...(converted?.notes ?? [])].filter(Boolean);
       if (s === session && notes.length) banner(notes.join(' '));
     }
   } catch (e) {
