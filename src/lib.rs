@@ -298,6 +298,12 @@ pub fn advance_face(
 }
 
 #[wasm_bindgen]
+pub fn advance_auto_shell(platform: &str, head: &[u8]) -> String {
+    let shell = advance::shell::automatic(platform, (!head.is_empty()).then_some(head));
+    format!("{} {} {}", shell.outline.word(), shell.hex(), shell.finish.word())
+}
+
+#[wasm_bindgen]
 pub fn advance_valid_name(stem: &str, suffix: &str) -> String {
     advance::convert::validate_name(stem, suffix)
         .err()

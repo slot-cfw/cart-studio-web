@@ -2,6 +2,11 @@
 // Everything that decides what a label looks like is Rust, in pkg/.
 
 import init, {
+  Advance,
+  advance_auto_shell,
+  advance_cart_size,
+  advance_face,
+  advance_valid_name,
   Crc32,
   Dat,
   Label,
@@ -35,6 +40,7 @@ import { applyFill, autoFill, available, fillCounts, fillText, wears } from './l
 import { extrasFrom } from './extras.js';
 import { heroPicks, heroShell } from './hero.js';
 import { dismissNotice, noticeShown } from './notice.js';
+import { flatFromSettings, slotPath } from './advance.js';
 
 const $ = (id) => document.getElementById(id);
 const limit = limiter(4);
@@ -47,7 +53,14 @@ const BUILD = 'dev';
 // the same width as a GBA cart and nearly twice as tall, so a canvas cut for one refuses the
 // other's pixels outright rather than drawing them badly.
 const faceBox = new Map();
-const boxOf = (platform) => faceBox.get(platform) ?? faceBox.get('GBA');
+const advanceBox = new Map();
+const onAdvance = () => !!session?.source.advance;
+const boxOf = (platform) => {
+  if (!onAdvance()) return faceBox.get(platform) ?? faceBox.get('GBA');
+  const key = platform === 'GBA' ? 'GBA' : 'GB';
+  if (!advanceBox.has(key)) advanceBox.set(key, Array.from(advance_cart_size(key, '', new Uint8Array(0))));
+  return advanceBox.get(key);
+};
 // One parsed No-Intro database per platform, kept across cards: the databases are large and a
 // second card of the same platform should not fetch one again.
 const dats = new Map();
@@ -65,8 +78,9 @@ const track = (promise) => {
   });
 };
 
-function newCart({ platform, stem, file }) {
+function newCart({ platform, stem, file, suffix }) {
   return {
+    suffix: suffix ?? '',
     // The folder the rom sits in, and so the only thing that says which console it is for.
     platform,
     stem,
@@ -221,7 +235,23 @@ const withCartLabel = (c, use) => withKindLabel(c, wearing(c).kind, use);
 
 const BLANK = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGO0snJiYGAAAAOUALgNWObMAAAAAElFTkSuQmCC'), (ch) => ch.charCodeAt(0));
 
+const flatOf = () => !!session?.flat;
+
+function existingFace(c) {
+  if (onAdvance()) return advance_face(c.existingPng, c.platform, c.stem, c.head, c.shell, flatOf());
+  return existing_face(c.existingPng, c.platform, c.code, c.head, c.shell, c.stem);
+}
+
+function advanceFaceFor(c, kind) {
+  if (kind === 'card') return c.existing;
+  if (kind === 'none' || kind === 'unfilled') {
+    return advance_face(new Uint8Array(0), c.platform, c.stem, c.head, c.shell, flatOf());
+  }
+  return withKindLabel(c, kind, (label) => label.advance_face(c.platform, c.stem, c.head, c.shell, flatOf()));
+}
+
 function faceFor(c, kind) {
+  if (onAdvance()) return advanceFaceFor(c, kind);
   if (kind === 'card') return c.existing;
   if (kind === 'none') return existing_face(new Uint8Array(0), c.platform, c.code, c.head, c.shell, c.stem);
   if (kind === 'unfilled') {
@@ -421,7 +451,8 @@ async function redress(s, c) {
 }
 
 const choiceOf = (c) => {
-  const [outline, colour, finish] = (c.shell || auto_shell(c.platform, c.code, c.head)).split(' ');
+  const auto = onAdvance() ? advance_auto_shell(c.platform, c.head) : auto_shell(c.platform, c.code, c.head);
+  const [outline, colour, finish] = (c.shell || auto).split(' ');
   return { outline, colour, finish };
 };
 
@@ -633,6 +664,15 @@ async function identify(s) {
   if (s !== session || fatal) return;
   if (failed.length) banner(failed.find((e) => e.name === 'OldShellFile')?.message ?? 'The card’s shells couldn’t be read.');
   s.shellText = text.labels;
+  s.systemText = text.system;
+  if (s.source.advance) {
+    try {
+      s.flat = flatFromSettings(await s.source.settings());
+    } catch (e) {
+      logError('SETTINGS.TXT', e);
+    }
+    if (s !== session || fatal) return;
+  }
   const system = cart_shells(text.system);
   s.systemShells = new Set(system.filter((_, i) => i % 2 === 0).map((stem) => stem.normalize('NFC')));
   const pairs = layered_cart_shells(text.system, text.labels);
@@ -650,13 +690,13 @@ async function identify(s) {
       // Only a GBA rom carries a game code. On a Game Boy cart 0xAC is inside the RST vectors,
       // so a code read from there is opcode bytes dressed up as one.
       c.code = hardware(c.platform) === 'GBA' ? header_code(head) : '';
-      if (hardware(c.platform) !== 'GBA') c.head = head;
+      if (hardware(c.platform) !== 'GBA' || s.source.advance) c.head = head;
       const label = s.source.labels.get(labelKey(c.platform, c.stem));
       if (label) {
         const bytes = new Uint8Array(await (await label()).arrayBuffer());
         c.existingPng = bytes;
         c.choice = 'card';
-        c.existing = existing_face(bytes, c.platform, c.code, c.head, c.shell, c.stem);
+        c.existing = existingFace(c);
         c.looking = false;
       } else {
         c.crc = await crcOf(file);
@@ -1014,7 +1054,9 @@ async function writeLabels() {
         try {
           [png, face] = withCartLabel(c, (label) => [
             label.png(),
-            label.face(c.platform, c.code, c.head, c.shell, c.stem),
+            s.source.advance
+              ? label.advance_face(c.platform, c.stem, c.head, c.shell, !!s.flat)
+              : label.face(c.platform, c.code, c.head, c.shell, c.stem),
           ]);
           c.result = await s.source.write(c.platform, c.stem, png, !!c.existingPng);
         } catch (e) {
@@ -1194,7 +1236,7 @@ function noMatch(c) {
 // follow-on inputs wait for a frame.
 function changed(c, soon = false) {
   try {
-    if (c.existingPng) c.existing = existing_face(c.existingPng, c.platform, c.code, c.head, c.shell, c.stem);
+    if (c.existingPng) c.existing = existingFace(c);
   } catch (e) {
     if (trapped(e)) return;
     throw e;
