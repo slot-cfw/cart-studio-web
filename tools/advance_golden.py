@@ -112,7 +112,7 @@ def primitives():
             dump(f'tinted-{shape}-{colour}-{finish}', c.tinted(name, colour, None, clear, finish == 'glitter'))
             dump(f'shell_face-{shape}-{colour}-{finish}', shell_face(c.ASSETS, shape, colour, finish, panel))
     dump('resize-gba', c.tinted('gba_neutral.png', '35353a').resize((120, 71), Image.Resampling.LANCZOS))
-    back = c.tinted('gba_interior.png', 'c2332e').copy()
+    back = c.tinted('gba_clear.png', 'c2332e', None, True, False).copy()
     back.alpha_composite(Image.open(c.ASSETS / 'board.png').convert('RGBA'))
     dump('composite', back)
     logo = Image.open(card / 'Labels' / 'GBA' / 'Logo.png').convert('RGBA')

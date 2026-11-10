@@ -32,6 +32,7 @@ pub mod hue;
 #[path = "../../slot/crates/slot-ui/src/house_label.rs"]
 pub mod label;
 
+pub mod advance;
 mod art;
 mod board;
 pub mod choice;
