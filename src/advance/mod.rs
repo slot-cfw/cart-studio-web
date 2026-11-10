@@ -1,4 +1,15 @@
+pub mod assets;
 pub mod pillow;
+pub mod plastic;
+pub mod shell;
+
+pub type Spec = ((u32, u32), [u32; 4], (u32, u32));
+
+pub const SPECS: [Spec; 3] = [
+    ((360, 212), [48, 50, 264, 136], (120, 71)),
+    ((312, 337), [44, 95, 223, 199], (104, 112)),
+    ((312, 337), [45, 110, 223, 199], (104, 112)),
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Image {
