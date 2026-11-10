@@ -253,6 +253,106 @@ impl JsLabel {
     pub fn png(&self) -> Vec<u8> {
         self.0.png()
     }
+
+    pub fn advance_face(
+        &self,
+        platform: &str,
+        stem: &str,
+        head: &[u8],
+        shell: &str,
+        flat: bool,
+    ) -> Vec<u8> {
+        let (w, h) = self.0.size();
+        let label = advance::decode::Label {
+            img: advance::Image {
+                w,
+                h,
+                px: self.0.rgba().to_vec(),
+            },
+            text_marker: false,
+        };
+        let shell = advance::convert::effective_shell(platform, head, shell);
+        advance::compose::compose(platform, stem, Some(&label), &shell, !flat)
+            .0
+            .px
+    }
+}
+
+#[wasm_bindgen]
+pub fn advance_cart_size(platform: &str, shell: &str, head: &[u8]) -> Vec<u32> {
+    let shell = advance::convert::effective_shell(platform, head, shell);
+    let (w, h) = advance::convert::cart_size(platform, &shell);
+    vec![w, h]
+}
+
+#[wasm_bindgen]
+pub fn advance_face(
+    label: &[u8],
+    platform: &str,
+    stem: &str,
+    head: &[u8],
+    shell: &str,
+    flat: bool,
+) -> Vec<u8> {
+    advance::convert::preview(platform, stem, label, head, shell, flat).px
+}
+
+#[wasm_bindgen]
+pub fn advance_valid_name(stem: &str, suffix: &str) -> String {
+    advance::convert::validate_name(stem, suffix)
+        .err()
+        .unwrap_or_default()
+}
+
+#[wasm_bindgen(js_name = Converted)]
+pub struct JsConverted(advance::convert::Converted);
+
+#[wasm_bindgen(js_class = Converted)]
+impl JsConverted {
+    pub fn cart(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.0.cart)
+    }
+
+    pub fn flat(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.0.flat)
+    }
+
+    pub fn label(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.0.label)
+    }
+}
+
+#[wasm_bindgen(js_name = Advance)]
+pub struct JsAdvance(advance::convert::Conversion);
+
+#[wasm_bindgen(js_class = Advance)]
+impl JsAdvance {
+    #[wasm_bindgen(constructor)]
+    pub fn new(source: &str, system_shells: &str, label_shells: &str) -> JsAdvance {
+        JsAdvance(advance::convert::Conversion::new(
+            source,
+            system_shells,
+            label_shells,
+        ))
+    }
+
+    pub fn add(
+        &mut self,
+        platform: &str,
+        stem: &str,
+        label: &[u8],
+        head: &[u8],
+        rom_suffix: &str,
+    ) -> Result<JsConverted, JsError> {
+        self.0
+            .add(platform, stem, label, head, rom_suffix)
+            .map(JsConverted)
+            .map_err(|e| JsError::new(&e))
+    }
+
+    pub fn manifest(self) -> String {
+        self.0.manifest()
+    }
 }
 
 /// Labels for a browser that can't write to the card, to unzip at its root.
