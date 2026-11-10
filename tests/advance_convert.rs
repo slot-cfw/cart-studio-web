@@ -148,6 +148,24 @@ fn validate_name_rules() {
         .starts_with("Filename is outside the kernel CP936"));
     assert!(validate_name("Brûlée", ".gba").is_err());
     assert!(validate_name("ポケモン", ".gba").is_ok());
+    assert!(validate_name("Crème · Café", ".gba").is_ok());
+    for refused in ['\u{20ac}', '\u{01f9}', '\u{2e81}', '\u{e000}', '\u{80}'] {
+        let stem = format!("Game {refused}");
+        assert!(
+            validate_name(&stem, ".gba")
+                .unwrap_err()
+                .starts_with("Filename is outside the kernel CP936"),
+            "{refused:?} should be refused as Python's cp936 refuses it"
+        );
+    }
+    assert_eq!(
+        validate_name(&"\u{30dd}".repeat(48), ".gba").unwrap_err(),
+        format!(
+            "Filename exceeds DS Style's 99-byte record: {}.gba",
+            "\u{30dd}".repeat(48)
+        )
+    );
+    assert!(validate_name(&"\u{30dd}".repeat(47), ".gba").is_ok());
 }
 
 #[test]

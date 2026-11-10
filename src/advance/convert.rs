@@ -93,6 +93,21 @@ pub fn py_repr(s: &str) -> String {
     out
 }
 
+fn cp936(c: char) -> bool {
+    let c = c as u32;
+    super::cp936::RANGES
+        .binary_search_by(|&(lo, hi)| {
+            if hi < c {
+                std::cmp::Ordering::Less
+            } else if lo > c {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        })
+        .is_ok()
+}
+
 pub fn validate_name(stem: &str, suffix: &str) -> Result<(), String> {
     if stem.is_empty()
         || stem == "."
@@ -103,14 +118,14 @@ pub fn validate_name(stem: &str, suffix: &str) -> Result<(), String> {
         return Err(format!("Filename cannot be used on FAT: {}", py_repr(stem)));
     }
     let name = format!("{stem}{suffix}");
-    let (encoded, _, bad) = encoding_rs::GBK.encode(&name);
-    if bad {
+    if !name.chars().all(cp936) {
         return Err(format!(
             "Filename is outside the kernel CP936 character set: {}",
             py_repr(stem)
         ));
     }
-    if encoded.len() >= 100 {
+    let bytes: usize = name.chars().map(|c| if c.is_ascii() { 1 } else { 2 }).sum();
+    if bytes >= 100 {
         return Err(format!(
             "Filename exceeds DS Style's 99-byte record: {name}"
         ));

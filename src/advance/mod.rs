@@ -2,6 +2,7 @@ pub mod assets;
 pub mod bmp;
 pub mod compose;
 pub mod convert;
+mod cp936;
 pub mod decode;
 pub mod pillow;
 pub mod plastic;
