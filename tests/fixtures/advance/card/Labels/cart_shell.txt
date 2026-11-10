@@ -1,0 +1,5 @@
+Cleared = auto
+Picked = rounded 123456 glitter
+Grey = notched aabbcc clear
+Ruby = auto 8844CC solid
+Café = auto 223344 solid

@@ -1,0 +1,2 @@
+Cleared = rounded abcdef clear
+Silver = auto 112233 glitter

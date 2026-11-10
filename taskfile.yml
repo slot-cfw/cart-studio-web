@@ -2,6 +2,9 @@ version: '3'
 
 vars:
   SLOT: ../slot
+  ADVANCE: ../slot-advance
+  ADVANCE_PATHS: >-
+    tools/convert_labels.py tools/simple_cartridge.py assets/slot/*.png assets/slot/ds-font.bin
   # What the studio's faces are made of: the files compiled in place, slot's art.rs that
   # src/art.rs copies, the assets they include, where `Cart` comes from, gba.rs, whose header
   # rule src/rom.rs mirrors, gb.rs, whose header the shim answers for, and ini.rs and
@@ -52,6 +55,20 @@ tasks:
         else
           echo "../slot's cart face has changed since slot.ref ($pin):"
           git -C {{.SLOT}} diff --stat "$pin" -- {{.FACE_PATHS}}
+          exit 1
+        fi
+
+  advance:pin-check:
+    desc: Say whether ../slot-advance's converter still matches the commit in slot-advance.ref
+    cmds:
+      - |
+        set -eu
+        pin="$(cat slot-advance.ref)"
+        if git -C {{.ADVANCE}} diff --quiet "$pin" -- {{.ADVANCE_PATHS}}; then
+          echo "../slot-advance's converter matches slot-advance.ref ($pin)"
+        else
+          echo "../slot-advance's converter has changed since slot-advance.ref ($pin):"
+          git -C {{.ADVANCE}} diff --stat "$pin" -- {{.ADVANCE_PATHS}}
           exit 1
         fi
 

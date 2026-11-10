@@ -1,0 +1,443 @@
+{
+  "format": 3,
+  "cart_scale": "1/3",
+  "bmp": "16-bit BI_RGB RGB555; magenta colour key",
+  "source": "card",
+  "items": [
+    {
+      "platform": "GB",
+      "stem": "Black",
+      "cart": "SYSTEM/SLOT/CARTS/GB/Black.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/Black.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/Black.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "333031",
+        "finish": "solid"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GB",
+      "stem": "Crystal",
+      "cart": "SYSTEM/SLOT/CARTS/GB/Crystal.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/Crystal.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/Crystal.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "86b9bf",
+        "finish": "glitter"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GB",
+      "stem": "Grey",
+      "cart": "SYSTEM/SLOT/CARTS/GB/Grey.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/Grey.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/Grey.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "aabbcc",
+        "finish": "clear"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GB",
+      "stem": "POKEMON RED",
+      "cart": "SYSTEM/SLOT/CARTS/GB/POKEMON RED.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/POKEMON RED.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/POKEMON RED.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "c0282c",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GB",
+      "stem": "Shared",
+      "cart": "SYSTEM/SLOT/CARTS/GB/Shared.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/Shared.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/Shared.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "9a978f",
+        "finish": "solid"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Cafe Ole [T+Eng] (Japan)",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Cafe Ole [T+Eng] (Japan).bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Cafe Ole [T+Eng] (Japan).bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Cafe Ole [T+Eng] (Japan).bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Logo",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Logo.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Logo.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Logo.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Orphan",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Orphan.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Orphan.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Orphan.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBA",
+      "stem": "Photo",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Photo.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Photo.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Photo.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Picked",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Picked.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Picked.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Picked.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "123456",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Plain",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Plain.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Plain.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Plain.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Ruby",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Ruby.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Ruby.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Ruby.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "8844cc",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Silver",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Silver.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Silver.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Silver.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "112233",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBA",
+      "stem": "Spider-Man - Mysterio's Menace (USA)",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/Spider-Man - Mysterio's Menace (USA).bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/Spider-Man - Mysterio's Menace (USA).bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/Spider-Man - Mysterio's Menace (USA).bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "35353a",
+        "finish": "solid"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBC",
+      "stem": "Cleared",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/Cleared.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/Cleared.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/Cleared.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "333031",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBC",
+      "stem": "Picked",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/Picked.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/Picked.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/Picked.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "123456",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBC",
+      "stem": "Prism",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/Prism.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/Prism.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/Prism.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "7c7a8a",
+        "finish": "clear"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": true
+    },
+    {
+      "platform": "GBC",
+      "stem": "Shared",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/Shared.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/Shared.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/Shared.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "7c7a8a",
+        "finish": "clear"
+      },
+      "scraped_label": false,
+      "native_text": true,
+      "recovered_existing_cart": false,
+      "header_read": true
+    }
+  ],
+  "warnings": [
+    "GB and GBC share the save stem 'shared'. DS Style stores both in SYSTEM/SAVER as .esv; use distinct ROM names to keep saves separate."
+  ]
+}
