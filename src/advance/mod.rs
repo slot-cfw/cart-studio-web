@@ -1,7 +1,11 @@
 pub mod assets;
+pub mod bmp;
+pub mod compose;
+pub mod decode;
 pub mod pillow;
 pub mod plastic;
 pub mod shell;
+pub mod text;
 
 pub type Spec = ((u32, u32), [u32; 4], (u32, u32));
 
