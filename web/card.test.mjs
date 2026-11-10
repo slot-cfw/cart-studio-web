@@ -231,3 +231,127 @@ test('twins are found across Unicode forms', () => {
   const decomposed = { platform: 'GBA', stem: 'Poke\u0301mon' };
   assert.deepEqual(twins([composed, decomposed], (c) => c.stem), new Set([composed, decomposed]));
 });
+
+const ADVANCE = {
+  'ezkernel.bin': '',
+  Games: { GBA: { 'a.agb': '', 'z.gba': '' }, GB: { 'b.gbc': '', 'g.gb': '' }, GBC: { 'c.gbc': '' }, GBAV: { 'v.gba': '' } },
+  Labels: { GBA: { 'z.jpg': 'jpeg', 'Orphan.png': 'png' }, GB: { 'g.png': 'png', 'g.webp': 'webp' } },
+  System: { SLOT: { 'SETTINGS.TXT': 'SlotOmega=3\n', CARTS: { GBA: { 'old.bmp': 'bmp' } }, 'conversion.json': '{}' } },
+};
+
+const cartsOf = (source) => source.carts.map((c) => `${c.platform}/${c.stem}${c.suffix ?? ''}`);
+const sources = async (tree) => [await fromDirectory(dirHandle(tree)), fromFiles(listed(tree))];
+
+test('a slot. advance card scans with the kernel rules', async () => {
+  for (const source of await sources(ADVANCE)) {
+    assert.equal(source.advance, true);
+    assert.equal(source.systemName, 'System');
+    assert.deepEqual(cartsOf(source), ['GBA/a.agb', 'GBA/z.gba', 'GBC/c.gbc', 'GB/g.gb']);
+  }
+});
+
+test('a slot card keeps slot rules and has no slot. advance fields', async () => {
+  const { 'ezkernel.bin': _, ...tree } = ADVANCE;
+  for (const source of await sources(tree)) {
+    assert.equal(source.advance, undefined);
+    assert.equal(source.orphans, undefined);
+    assert.ok(cartsOf(source).includes('GB/b'));
+    assert.ok(!cartsOf(source).some((c) => c.startsWith('GBA/a')));
+  }
+});
+
+test('a slot. advance card reads non-PNG labels and prefers a PNG', async () => {
+  for (const source of await sources(ADVANCE)) {
+    assert.equal(await (await source.labels.get('GBA/z')()).text(), 'jpeg');
+    assert.equal(await (await source.labels.get('GB/g')()).text(), 'png');
+  }
+  const { 'ezkernel.bin': _, ...slot } = ADVANCE;
+  for (const source of await sources(slot)) assert.equal(source.labels.get('GBA/z'), undefined);
+});
+
+test('labels with no rom are slot. advance orphans', async () => {
+  for (const source of await sources(ADVANCE)) {
+    const orphans = await Promise.all(
+      source.orphans.map(async (o) => `${o.platform}/${o.stem}:${await (await o.file()).text()}`),
+    );
+    assert.deepEqual(orphans, ['GBA/Orphan:png']);
+  }
+});
+
+test('the device settings are read from the card', async () => {
+  for (const source of await sources(ADVANCE)) assert.equal(await source.settings(), 'SlotOmega=3\n');
+  const { System: _, ...bare } = ADVANCE;
+  for (const source of await sources(bare)) assert.equal(await source.settings(), null);
+});
+
+test('the zip carries the card own SLOT files but not what conversion makes', async () => {
+  const source = fromFiles(listed(ADVANCE));
+  assert.deepEqual(
+    source.slotFiles.map((f) => f.path),
+    ['System/SLOT/SETTINGS.TXT'],
+  );
+});
+
+const writable = (tree) => ({
+  kind: 'directory',
+  async getDirectoryHandle(name, { create = false } = {}) {
+    if (typeof tree[name] !== 'object') {
+      if (!create) throw notFound();
+      tree[name] = {};
+    }
+    return writable(tree[name]);
+  },
+  async getFileHandle(name, { create = false } = {}) {
+    if (typeof tree[name] !== 'string') {
+      if (!create) throw notFound();
+      tree[name] = '';
+    }
+    return {
+      kind: 'file',
+      getFile: async () => new File([tree[name]], name),
+      createWritable: async () => {
+        let body = '';
+        return {
+          write: async (bytes) => (body += typeof bytes === 'string' ? bytes : new TextDecoder().decode(bytes)),
+          close: async () => (tree[name] = body),
+          abort: async () => {},
+        };
+      },
+    };
+  },
+  async removeEntry(name) {
+    if (!(name in tree)) throw notFound();
+    delete tree[name];
+  },
+  async *entries() {
+    for (const name of Object.keys(tree)) {
+      yield [name, typeof tree[name] === 'object' ? writable(tree[name]) : await this.getFileHandle(name)];
+    }
+  },
+});
+
+test('generated files land in the card own System folder', async () => {
+  const tree = structuredClone(ADVANCE);
+  const source = await fromDirectory(writable(tree));
+  await source.writeSlot(['CARTS', 'GBA', 'x.bmp'], new TextEncoder().encode('new'));
+  await source.writeSlot(['conversion.json'], new TextEncoder().encode('{"a":1}'));
+  assert.equal(tree.SYSTEM, undefined);
+  assert.equal(tree.System.SLOT.CARTS.GBA['x.bmp'], 'new');
+  assert.equal(tree.System.SLOT.CARTS.GBA['old.bmp'], 'bmp');
+  assert.equal(tree.System.SLOT['conversion.json'], '{"a":1}');
+});
+
+test('a card with no System folder gets SYSTEM', async () => {
+  const { System: _, ...bare } = structuredClone(ADVANCE);
+  const source = await fromDirectory(writable(bare));
+  await source.writeSlot(['LABELS', 'GB', 'y.bmp'], new TextEncoder().encode('y'));
+  assert.equal(bare.SYSTEM.SLOT.LABELS.GB['y.bmp'], 'y');
+});
+
+test('a new PNG label replaces a non-PNG one on a slot. advance card', async () => {
+  const tree = structuredClone(ADVANCE);
+  const source = await fromDirectory(writable(tree));
+  assert.equal(await source.write('GBA', 'z', new TextEncoder().encode('png'), true), 'written');
+  assert.equal(tree.Labels.GBA['z.png'], 'png');
+  assert.equal(tree.Labels.GBA['z.jpg'], undefined);
+});

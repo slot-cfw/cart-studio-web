@@ -15,15 +15,53 @@ export const hardware = (platform) => HARDWARE[platform] ?? platform;
 const EXTENSIONS = { GBA: ['gba'], GBAV: ['gba'], GB: ['gb', 'gbc'], GBC: ['gb', 'gbc'] };
 const ANY_ROM = ['gba', 'gb', 'gbc'];
 
+import { advanceExtensions, isAdvanceRoot, LABEL_EXTENSIONS } from './advance.js';
+
 const named = (dir) => PLATFORMS.find((p) => p === dir.toUpperCase());
 const ext = (name) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
 // Never a dotfile: macOS leaves `._` sidecars beside what it copies onto a card, extension and
 // all, so the extension alone cannot tell them from the file they shadow.
 const visible = (name) => !name.startsWith('.');
-const isCart = (platform, name) => visible(name) && EXTENSIONS[platform].includes(ext(name));
+const isCart = (platform, name, advance = false) =>
+  visible(name) && ((advance ? advanceExtensions : EXTENSIONS)[platform] ?? []).includes(ext(name));
 const isRom = (name) => visible(name) && ANY_ROM.includes(ext(name));
-const isLabel = (name) => visible(name) && ext(name) === 'png';
+const isLabel = (name, advance = false) => visible(name) && (advance ? LABEL_EXTENSIONS : ['png']).includes(ext(name));
 const stemOf = (name) => name.slice(0, name.lastIndexOf('.'));
+const suffixOf = (name) => name.slice(name.lastIndexOf('.'));
+const GENERATED = ['carts', 'carts_flat', 'labels'];
+
+function labelPicker() {
+  const ranks = new Map();
+  const labels = new Map();
+  const found = [];
+  return {
+    labels,
+    found,
+    add(platform, name, file) {
+      const key = labelKey(platform, stemOf(name));
+      const rank = LABEL_EXTENSIONS.indexOf(ext(name));
+      if (ranks.has(key) && ranks.get(key) <= rank) return;
+      if (!ranks.has(key)) found.push({ key, platform, stem: stemOf(name) });
+      ranks.set(key, rank);
+      labels.set(key, file);
+    },
+  };
+}
+
+function advanceFields(carts, picker) {
+  const owned = new Set(carts.map((c) => labelKey(c.platform, c.stem)));
+  const orphans = picker.found
+    .filter((l) => advanceExtensions[l.platform] && !owned.has(l.key))
+    .map((l) => ({ platform: l.platform, stem: l.stem, file: picker.labels.get(l.key) }));
+  return { advance: true, orphans };
+}
+
+async function childNamed(dir, name) {
+  for await (const [entry, handle] of dir.entries()) {
+    if (handle.kind === 'directory' && entry.toLowerCase() === name.toLowerCase()) return handle;
+  }
+  return null;
+}
 
 // macOS lists exFAT names decomposed, whatever form was written, so names are compared composed.
 // What gets written is still the listing's own spelling. The platform is part of the key because
@@ -55,6 +93,10 @@ const OLD_LAYOUT =
   'This card keeps its roms loose in Games, where slot doesn’t look. Move them into the GBA, GB and GBC folders inside Games, then choose the card again.';
 
 export async function fromDirectory(root) {
+  const rootNames = [];
+  for await (const [name] of root.entries()) rootNames.push(name);
+  const advance = isAdvanceRoot(rootNames);
+  const systemName = rootNames.find((n) => n.toLowerCase() === 'system') ?? 'SYSTEM';
   let games;
   try {
     games = await root.getDirectoryHandle('Games');
@@ -72,23 +114,24 @@ export async function fromDirectory(root) {
     }
     sawPlatform = true;
     for await (const [file, fh] of handle.entries()) {
-      if (fh.kind === 'file' && isCart(platform, file)) {
-        carts.push({ platform, stem: stemOf(file), file: () => fh.getFile() });
+      if (fh.kind === 'file' && isCart(platform, file, advance)) {
+        const cart = { platform, stem: stemOf(file), file: () => fh.getFile() };
+        if (advance) cart.suffix = suffixOf(file);
+        carts.push(cart);
       }
     }
   }
   if (!sawPlatform && loose) throw new Error(OLD_LAYOUT);
 
-  const labels = new Map();
+  const picker = labelPicker();
+  const labels = picker.labels;
   try {
     const dir = await root.getDirectoryHandle('Labels');
     for await (const [name, handle] of dir.entries()) {
       const platform = handle.kind === 'directory' ? named(name) : null;
       if (!platform) continue;
       for await (const [file, fh] of handle.entries()) {
-        if (fh.kind === 'file' && isLabel(file)) {
-          labels.set(labelKey(platform, stemOf(file)), () => fh.getFile());
-        }
+        if (fh.kind === 'file' && isLabel(file, advance)) picker.add(platform, file, () => fh.getFile());
       }
     }
   } catch {
@@ -126,7 +169,42 @@ export async function fromDirectory(root) {
   const systemShells = async () => (await shellFile('Config')) ?? (await shellFile('System')) ?? '';
   const labelShells = async () => (await shellFile('Labels')) ?? '';
 
+  const slotDir = async (create) => {
+    const dir = (await childNamed(root, systemName)) ?? (create ? await root.getDirectoryHandle(systemName, { create }) : null);
+    if (!dir) return null;
+    return (await childNamed(dir, 'SLOT')) ?? (create ? await dir.getDirectoryHandle('SLOT', { create }) : null);
+  };
+  const extra = advance
+    ? {
+        ...advanceFields(carts, picker),
+        systemName,
+        async settings() {
+          const dir = await slotDir(false);
+          if (!dir) return null;
+          for await (const [name, handle] of dir.entries()) {
+            if (handle.kind === 'file' && name.toLowerCase() === 'settings.txt') return (await handle.getFile()).text();
+          }
+          return null;
+        },
+        async writeSlot(parts, bytes) {
+          let dir = await slotDir(true);
+          for (const name of parts.slice(0, -1)) {
+            dir = (await childNamed(dir, name)) ?? (await dir.getDirectoryHandle(name, { create: true }));
+          }
+          const out = await (await dir.getFileHandle(parts.at(-1), { create: true })).createWritable();
+          try {
+            await out.write(bytes);
+            await out.close();
+          } catch (e) {
+            await out.abort().catch(() => {});
+            throw e;
+          }
+        },
+      }
+    : {};
+
   return {
+    ...extra,
     carts: carts.sort(byCart),
     labels,
     direct: true,
@@ -172,6 +250,16 @@ export async function fromDirectory(root) {
         if (!existed) await dir.removeEntry(name).catch(() => {});
         throw e;
       }
+      if (advance) {
+        const stale = [];
+        for await (const [other, handle] of dir.entries()) {
+          const same = stemOf(other).normalize('NFC') === stem.normalize('NFC');
+          if (handle.kind === 'file' && same && ext(other) !== 'png' && LABEL_EXTENSIONS.includes(ext(other))) {
+            stale.push(other);
+          }
+        }
+        for (const other of stale) await dir.removeEntry(other).catch(() => {});
+      }
       return 'written';
     },
   };
@@ -179,14 +267,28 @@ export async function fromDirectory(root) {
 
 export function fromFiles(files) {
   if (files.length === 0) throw new Error(UNREADABLE);
+  const paths = files.map((file) => file.webkitRelativePath.split('/'));
+  const advance = isAdvanceRoot(paths.filter((parts) => parts.length === 2).map((parts) => parts[1]));
+  const systemName = paths.find((parts) => parts.length >= 3 && parts[1].toLowerCase() === 'system')?.[1] ?? 'SYSTEM';
   const carts = [];
-  const labels = new Map();
+  const picker = labelPicker();
+  const labels = picker.labels;
   const labelFiles = [];
+  const slotFiles = [];
+  let settingsFile = null;
   let sawPlatform = false;
   let loose = false;
   const shellFiles = {};
   for (const file of files) {
     const parts = file.webkitRelativePath.split('/');
+    if (advance && parts.length >= 4 && parts[1].toLowerCase() === 'system' && parts[2].toLowerCase() === 'slot') {
+      const rest = parts.slice(3);
+      const made =
+        (rest.length > 1 && GENERATED.includes(rest[0].toLowerCase()) && ext(rest.at(-1)) === 'bmp') ||
+        (rest.length === 1 && rest[0].toLowerCase() === 'conversion.json');
+      if (rest.length === 1 && rest[0].toLowerCase() === 'settings.txt') settingsFile = file;
+      if (!made && rest.every(visible)) slotFiles.push({ path: [systemName, 'SLOT', ...rest].join('/'), file: async () => file });
+    }
     if (parts.length >= 3 && parts[1].toLowerCase() === 'labels' && parts.slice(2).every(visible)) {
       labelFiles.push({ path: ['Labels', ...parts.slice(2)].join('/'), file: async () => file });
     }
@@ -207,9 +309,13 @@ export function fromFiles(files) {
     if (!platform) continue;
     if (dir.toLowerCase() === 'games') {
       sawPlatform = true;
-      if (isCart(platform, name)) carts.push({ platform, stem: stemOf(name), file: async () => file });
-    } else if (dir.toLowerCase() === 'labels' && isLabel(name)) {
-      labels.set(labelKey(platform, stemOf(name)), async () => file);
+      if (isCart(platform, name, advance)) {
+        const cart = { platform, stem: stemOf(name), file: async () => file };
+        if (advance) cart.suffix = suffixOf(name);
+        carts.push(cart);
+      }
+    } else if (dir.toLowerCase() === 'labels' && isLabel(name, advance)) {
+      picker.add(platform, name, async () => file);
     }
   }
   if (!sawPlatform) throw new Error(loose ? OLD_LAYOUT : NO_GAMES);
@@ -217,7 +323,11 @@ export function fromFiles(files) {
     const file = files?.[0] ?? files?.[1];
     return file ? file.text() : '';
   };
+  const extra = advance
+    ? { ...advanceFields(carts, picker), systemName, slotFiles, settings: async () => settingsFile?.text() ?? null }
+    : {};
   return {
+    ...extra,
     carts: carts.sort(byCart),
     labels,
     labelFiles,
